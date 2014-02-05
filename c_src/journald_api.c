@@ -655,7 +655,7 @@ static ERL_NIF_TERM nif_get_realtime_usec (ErlNifEnv *env, int argc, const ERL_N
     if(r < 0 ) 
         return enif_make_tuple2(env, atom_error, enif_make_string(env,"getting realtime failed",ERL_NIF_LATIN1));
 
-    return enif_make_uint64(env, usec);
+    return enif_make_tuple2(env, atom_ok, enif_make_uint64(env, usec)); 
 }
 
 static ERL_NIF_TERM nif_seek_realtime_usec (ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]){

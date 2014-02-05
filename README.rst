@@ -38,8 +38,8 @@ Message must be a string. Messages are sent after "\n" is written.
 
 Example for stream_fd/3 and write_fd/2: 
 
-    Fd = journald_api:stream_fd("id",5,0).  
-    journald_api:write_fd(Fd, "notice\n").
+   Fd = journald_api:stream_fd("id",5,0).  
+   journald_api:write_fd(Fd, "notice\n").
 
 will produce the following message in the journal:
         

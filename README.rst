@@ -52,6 +52,8 @@ will produce the following message in the journal:
 
 Reading from the journal: The following command sequence describes a typical workflow. 
 
+```
+
     {ok, Journal} = journald_api:open().                            
     {ok, JournalDir} = journald_api:open_directory(<Path>).    	
 
@@ -98,6 +100,7 @@ Reading from the journal: The following command sequence describes a typical wor
 
     journald_api:close(Journal).            
 
+```
 
 There can be just one notifier per Journal instance. The notifier itself is no part of the C-API but uses the sd_journal_wait() function.
 The notifier will close itself when the receiving Erlang process is not available.

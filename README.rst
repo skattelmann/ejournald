@@ -16,7 +16,7 @@ You can build the project by executing "tetrapak build".
 
 Lager integration
 -----------------
-You can use lager_journald_backend (https://github.com/travelping/lager_journald_backend) to send your Lager logs to systemd's journal.
+You can use [lager_journald_backend](https://github.com/travelping/lager_journald_backend) to send your Lager logs to systemd's journal.
 
 Usage
 -----
@@ -38,8 +38,7 @@ Message must be a string. Messages are sent after "\n" is written.
 
 Example for stream_fd/3 and write_fd/2: 
 
-    Fd = journald_api:stream_fd("id",5,0).
-
+    Fd = journald_api:stream_fd("id",5,0).  
     journald_api:write_fd(Fd, "notice\n").
 
 will produce the following message in the journal:

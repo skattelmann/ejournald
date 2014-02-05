@@ -16,7 +16,7 @@ You can build the project by executing "tetrapak build".
 
 Lager integration
 -----------------
-You can use [lager_journald_backend](https://github.com/travelping/lager_journald_backend) to send your Lager logs to systemd's journal.
+You can use lager_journald_backend (https://github.com/travelping/lager_journald_backend) to send your Lager logs to systemd's journal.
 
 Usage
 -----
@@ -49,54 +49,52 @@ will produce the following message in the journal:
 
 Reading from the journal: The following command sequence describes a typical workflow. 
 
-    > {ok, Journal} = journald_api:open().                            
-    > {ok, JournalDir} = journald_api:open_directory(<Path>).    	
+    {ok, Journal} = journald_api:open().                            
+    {ok, JournalDir} = journald_api:open_directory(<Path>).    	
 
-    > journald_api:next(Journal).                        		
-    > journald_api:get_data(Journal, "MESSAGE").        
-    {ok,"MESSAGE= first message"}                     	
+    journald_api:next(Journal).                        		
+    journald_api:get_data(Journal, "MESSAGE").        
+    *{ok,"MESSAGE= first message"}*                     	
 
-    > journald_api:seek_tail(Journal).                 
-    > journald_api:previous(Journal).                 
-    > journald_api:get_data(Journal, "MESSAGE").
-    {ok,"MESSAGE= another message"}
+    journald_api:seek_tail(Journal).                 
+    journald_api:previous(Journal).                 
+    journald_api:get_data(Journal, "MESSAGE").
+    *{ok,"MESSAGE= another message"}*
 
-    > journald_api:add_match(Journal, "PRIORITY=7"). 
-    > journald_api:previous(Journal).               
-    > journald_api:get_data(Journal, "PRIORITY").
-    {ok,"PRIORITY=7"}
+    journald_api:add_match(Journal, "PRIORITY=7"). 
+    journald_api:previous(Journal).               
+    journald_api:get_data(Journal, "PRIORITY").
+    *{ok,"PRIORITY=7"}*
 
-    > journald_api:add_disjunction(Journal).        
+    journald_api:add_disjunction(Journal).        
     											
-    > journald_api:add_match(Journal, "PRIORITY=5").
+    journald_api:add_match(Journal, "PRIORITY=5").
 
-    > journald_api:flush_matches(Journal).         
-    > journald_api:next(Journal).
-    > journald_api:get_data(Journal, "PRIORITY").
-    {ok,"PRIORITY=3"}
+    journald_api:flush_matches(Journal).         
+    journald_api:next(Journal).
+    journald_api:get_data(Journal, "PRIORITY").
+    *{ok,"PRIORITY=3"}*
 
-    > journald_api:seek_head(Journal).                    
-    > journald_api:next().                       
+    journald_api:seek_head(Journal).                    
+    journald_api:next().                       
 
-    > {ok, Cursor} = journald_api:get_cursor(Journal).
-    > journald_api:test_cursor(Journal, Cursor).    
-    > journald_api:seek_cursor(Journal, Cursor).
-    > journald_api:next(Journal).                  
+    {ok, Cursor} = journald_api:get_cursor(Journal).
+    journald_api:test_cursor(Journal, Cursor).    
+    journald_api:seek_cursor(Journal, Cursor).
+    journald_api:next(Journal).                  
 
-    > journald_api:enumerate_data(Journal).		
-    > journald_api:restart_data(Journal).
+    journald_api:enumerate_data(Journal).		
+    journald_api:restart_data(Journal).
 
-    > journald_api:open_notifier(Journal, self()).
-    > journald_api:sendv([{"MESSAGE", test}]).	
-    > flush().
-    Shell got journal_append
+    journald_api:open_notifier(Journal, self()).
+    journald_api:sendv([{"MESSAGE", test}]).	
+    flush().
+    *Shell got journal_append*
 
-    > journald_api:close_notifier(Journal).						
+    journald_api:close_notifier(Journal).						
 
-    > journald_api:close(Journal).            
+    journald_api:close(Journal).            
 
-
-The upper example consists of all currently implemented methods. 
 
 There can be just one notifier per Journal instance. The notifier itself is no part of the C-API but uses the sd_journal_wait() function.
 The notifier will close itself when the receiving Erlang process is not available.

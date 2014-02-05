@@ -645,31 +645,15 @@ static ERL_NIF_TERM nif_get_realtime_usec (ErlNifEnv *env, int argc, const ERL_N
 
     journal_container *jc;
     uint64_t usec;
-    int r = 0;
+    int r;
 
     if (!enif_get_resource(env, argv[0], journal_container_type, (void **) &jc))
         return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
 
     r = sd_journal_get_realtime_usec(jc->journal_pointer, &usec);
     if(r < 0 ) 
-        return atom_error;
+        return enif_make_tuple2(env, atom_error, enif_make_string(env,"getting realtime failed",ERL_NIF_LATIN1));
 
-    return enif_make_uint64(env, usec);
-}
-
-static ERL_NIF_TERM nif_get_monotonic_usec (ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]){
-
-    journal_container *jc;
-    uint64_t usec;
-    int r = 0;
-    
-    if (!enif_get_resource(env, argv[0], journal_container_type, (void **) &jc))
-        return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
-    
-    r = sd_journal_get_monotonic_usec(jc->journal_pointer, &usec, NULL);
-    if(r < 0) 
-        return atom_error;
-    
     return enif_make_uint64(env, usec);
 }
 
@@ -677,7 +661,7 @@ static ERL_NIF_TERM nif_seek_realtime_usec (ErlNifEnv *env, int argc, const ERL_
 
     journal_container *jc;
     uint64_t usec;
-    int r = 0;
+    int r;
     
     if (!enif_get_resource(env, argv[0], journal_container_type, (void **) &jc))
         return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
@@ -687,11 +671,26 @@ static ERL_NIF_TERM nif_seek_realtime_usec (ErlNifEnv *env, int argc, const ERL_
 
     r = sd_journal_seek_realtime_usec(jc->journal_pointer, usec);
     if(r < 0) 
-        return atom_error;
+        return enif_make_tuple2(env, atom_error, enif_make_string(env,"getting monotonic time failed",ERL_NIF_LATIN1));
     
     return atom_ok;
 }
 
+static ERL_NIF_TERM nif_get_monotonic_usec (ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]){
+
+    journal_container *jc;
+    uint64_t usec;
+    int r;
+    
+    if (!enif_get_resource(env, argv[0], journal_container_type, (void **) &jc))
+        return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
+    
+    r = sd_journal_get_monotonic_usec(jc->journal_pointer, &usec, NULL);
+    if(r < 0) 
+        return enif_make_tuple2(env, atom_error, enif_make_string(env,"getting monotonic time failed",ERL_NIF_LATIN1));
+    
+    return enif_make_uint64(env, usec);
+}
 
 static ErlNifFunc nif_funcs[] =
 {    
@@ -708,7 +707,7 @@ static ErlNifFunc nif_funcs[] =
     {"get_data", 2, nif_get_data},
     {"add_match", 2, nif_add_match},
     {"add_disjunction", 1, nif_add_disjunction},
-//    {"add_conjunction", 1, nif_add_conjunction},
+    {"add_conjunction", 1, nif_add_conjunction},
     {"flush_matches", 1, nif_flush_matches},
     {"seek_head", 1, nif_seek_head},
     {"seek_tail", 1, nif_seek_tail},
@@ -723,8 +722,8 @@ static ErlNifFunc nif_funcs[] =
     {"open_notifier", 2, nif_open_notifier},
     {"close_notifier", 1, nif_close_notifier},
     {"get_realtime_usec", 1, nif_get_realtime_usec},
-    {"get_monotonic_usec", 1, nif_get_monotonic_usec},
-    {"seek_realtime_usec", 2, nif_seek_realtime_usec}
+    {"seek_realtime_usec", 2, nif_seek_realtime_usec},
+    {"get_monotonic_usec", 1, nif_get_monotonic_usec}
 };
 
 ERL_NIF_INIT(journald_api,nif_funcs,load,NULL,NULL,NULL)

@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <systemd/sd-journal.h>
+#include <systemd/sd-id128.h>
 #include <alloca.h>
 #include <assert.h>
 #include <unistd.h>
@@ -684,12 +685,48 @@ static ERL_NIF_TERM nif_get_monotonic_usec (ErlNifEnv *env, int argc, const ERL_
     
     if (!enif_get_resource(env, argv[0], journal_container_type, (void **) &jc))
         return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
-    
-    r = sd_journal_get_monotonic_usec(jc->journal_pointer, &usec, NULL);
+
+    sd_id128_t boot_id;
+
+    r = sd_journal_get_monotonic_usec(jc->journal_pointer, &usec, &boot_id);
     if(r < 0) 
         return enif_make_tuple2(env, atom_error, enif_make_string(env,"getting monotonic time failed",ERL_NIF_LATIN1));
     
-    return enif_make_uint64(env, usec);
+    char boot_id_as_string[33];
+    sd_id128_to_string( boot_id, boot_id_as_string);
+
+    return enif_make_tuple3(env, atom_ok, enif_make_uint64(env, usec), enif_make_string(env, boot_id_as_string, ERL_NIF_LATIN1)); 
+}
+
+static ERL_NIF_TERM nif_seek_monotonic_usec (ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]){
+
+    journal_container *jc;
+    unsigned int ip;
+    uint64_t usec;
+    int r;
+    
+    if (!enif_get_resource(env, argv[0], journal_container_type, (void **) &jc))
+        return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
+
+    if (!enif_get_list_length(env, argv[1], &ip))
+        return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
+    
+    char field[ip+1];
+    if (!enif_get_string(env, argv[1], field, ip, ERL_NIF_LATIN1))
+        return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
+    field[ip] = '\0';
+
+    if(!enif_get_uint64(env, argv[2], &usec))
+        return enif_make_tuple2(env, atom_error, enif_make_string(env, "bad argument", ERL_NIF_LATIN1));
+
+    sd_id128_t boot_id;
+    sd_id128_from_string(field, &boot_id);
+
+    r = sd_journal_seek_monotonic_usec(jc->journal_pointer, boot_id, usec);
+    if(r < 0) 
+        return enif_make_tuple2(env, atom_error, enif_make_string(env,"getting monotonic time failed",ERL_NIF_LATIN1));
+    
+    return atom_ok;
 }
 
 static ErlNifFunc nif_funcs[] =
@@ -707,7 +744,7 @@ static ErlNifFunc nif_funcs[] =
     {"get_data", 2, nif_get_data},
     {"add_match", 2, nif_add_match},
     {"add_disjunction", 1, nif_add_disjunction},
-    {"add_conjunction", 1, nif_add_conjunction},
+//    {"add_conjunction", 1, nif_add_conjunction},
     {"flush_matches", 1, nif_flush_matches},
     {"seek_head", 1, nif_seek_head},
     {"seek_tail", 1, nif_seek_tail},
@@ -723,7 +760,8 @@ static ErlNifFunc nif_funcs[] =
     {"close_notifier", 1, nif_close_notifier},
     {"get_realtime_usec", 1, nif_get_realtime_usec},
     {"seek_realtime_usec", 2, nif_seek_realtime_usec},
-    {"get_monotonic_usec", 1, nif_get_monotonic_usec}
+    {"get_monotonic_usec", 1, nif_get_monotonic_usec},
+    {"seek_monotonic_usec", 3, nif_seek_monotonic_usec}    
 };
 
 ERL_NIF_INIT(journald_api,nif_funcs,load,NULL,NULL,NULL)

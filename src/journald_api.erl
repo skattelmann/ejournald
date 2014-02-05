@@ -31,7 +31,7 @@
         enumerate_unique/1, restart_unique/1, open_notifier/2,
         enumerate_data/1, restart_data/1, close_notifier/1,
         get_realtime_usec/1, get_monotonic_usec/1,
-        seek_realtime_usec/2]).
+        seek_realtime_usec/2, seek_monotonic_usec/3]).
 
 -on_load(load_nif/0).
 
@@ -122,10 +122,13 @@ close_notifier(_Arg) ->
 get_realtime_usec(_Journal) ->
     "NIF library not loaded".
 
+seek_realtime_usec(_Journal, _Usec) ->
+    "NIF library not loaded".
+
 get_monotonic_usec(_Journal) ->
     "NIF library not loaded".
 
-seek_realtime_usec(_Journal, _Usec) ->
+seek_monotonic_usec(_Args1, _Arg2, _Arg3) ->
     "NIF library not loaded".
 
 list_conversion([])    -> [];

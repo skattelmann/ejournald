@@ -672,7 +672,7 @@ static ERL_NIF_TERM nif_seek_realtime_usec (ErlNifEnv *env, int argc, const ERL_
 
     r = sd_journal_seek_realtime_usec(jc->journal_pointer, usec);
     if(r < 0) 
-        return enif_make_tuple2(env, atom_error, enif_make_string(env,"getting monotonic time failed",ERL_NIF_LATIN1));
+        return enif_make_tuple2(env, atom_error, enif_make_string(env,"seeking realtime failed",ERL_NIF_LATIN1));
     
     return atom_ok;
 }
@@ -724,7 +724,7 @@ static ERL_NIF_TERM nif_seek_monotonic_usec (ErlNifEnv *env, int argc, const ERL
 
     r = sd_journal_seek_monotonic_usec(jc->journal_pointer, boot_id, usec);
     if(r < 0) 
-        return enif_make_tuple2(env, atom_error, enif_make_string(env,"getting monotonic time failed",ERL_NIF_LATIN1));
+        return enif_make_tuple2(env, atom_error, enif_make_string(env,"seeking monotonic time failed",ERL_NIF_LATIN1));
     
     return atom_ok;
 }

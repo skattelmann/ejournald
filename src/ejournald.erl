@@ -17,8 +17,8 @@
 %% -- application callbacks
 start(_Type, _Args) ->
 	ejournald_sup:start_link(),
-	start_reader(?READER, []).
-	%start_io(?IO_SERVER).
+	start_reader(?READER, []),
+	start_io(?IO_SERVER, []).
 
 stop(_State) ->
 	ok.

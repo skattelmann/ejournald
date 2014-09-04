@@ -103,6 +103,12 @@ reset_cursor(Cursor, #state{fd = Fd}) ->
 	end,
 	journald_api:seek_cursor(Fd, Cursor).
 
+get_last_cursor(#state{fd = Fd}) ->
+	ok = journald_api:seek_tail(Fd),
+	ok = journald_api:previous(Fd),
+	{ok, Cursor} = journald_api:get_cursor(Fd),
+	Cursor.
+
 reset_timeframe(DateTime1, DateTime2, State = #state{fd = Fd}) ->
     {ok, Cursor1} = seek_timestamp(DateTime1, State),
     {ok, Cursor2} = seek_timestamp(DateTime2, State),
@@ -252,12 +258,6 @@ evaluate_log_options(Options, State = #state{fd = Fd}) ->
 		undefined 	-> {Result, State2};
 		_ 			-> {{Result, NewLastCursor}, State2}
 	end.
-
-get_last_cursor(#state{fd = Fd}) ->
-	ok = journald_api:seek_tail(Fd),
-	ok = journald_api:previous(Fd),
-	{ok, Cursor} = journald_api:get_cursor(Fd),
-	Cursor.
 
 collect_logs(Call, AtMost, State) ->
 	collect_logs(Call, AtMost, State, []).

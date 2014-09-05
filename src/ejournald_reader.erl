@@ -34,9 +34,12 @@ handle_call({register_notifier, Pid}, _From, State) ->
 	{reply, ok, register_notifier(Pid, State)};
 handle_call({unregister_notifier, Pid}, _From, State) ->
 	{reply, ok, unregister_notifier(Pid, State)};
-handle_call(last_cursor, _From, State) ->
-	Cursor = get_last_cursor(State),
-	{reply, Cursor, State};
+handle_call(last_entry_cursor, _From, State) ->
+	LastEntryMeta = get_last_entry_cursor(State),
+	{reply, LastEntryMeta, State};
+handle_call({flush_logs, Options}, _From, State) ->
+	ResultAndMeta = flush_logs(Options, State),
+	{reply, ResultAndMeta, State};
 handle_call(_Msg, _From, State) ->
 	{noreply, State}.
 
@@ -47,9 +50,12 @@ handle_info(journal_append, State = #state{notifier = Notifier}) ->
 handle_info(_Msg, State) -> 
 	{noreply, State}.
 
+terminate(_Reason, State = #state{notifier = Notifier}) -> 
+	[ unregister_notifier(Pid, State) || Pid <- Notifier#notifier.user_pids ],
+	ok.
+
 %% unused
 handle_cast(_Msg, State) -> {noreply, State}.
-terminate(_Reason, _State) -> ok.
 code_change(_,_,State) -> {ok, State}. 
 
 %% ----------------------------------------------------------------------------------------------------
@@ -66,7 +72,10 @@ reset_entry(Pos, State) ->
 
 next_entry(State = #state{fd = Fd}) ->
 	case reset_entry(next, State) of
-		ok -> get_fields(Fd);
+		ok -> 
+			{ok, Timestamp} = journald_api:get_realtime_usec(Fd),
+			Fields = get_fields(Fd),
+			{Timestamp, Fields};
 		Error -> Error
 	end.
 
@@ -85,7 +94,9 @@ next_field(FieldName, State = #state{fd = Fd}) ->
 	case reset_entry(next, State) of
 		ok -> 
     		case journald_api:get_data(Fd, FieldName) of
-    			{ok, Data} -> Data;
+    			{ok, Data} -> 
+					{ok, Timestamp} = journald_api:get_realtime_usec(Fd),
+    				{Timestamp, Data};
     			Error -> Error
     		end;
     	Error ->
@@ -103,11 +114,12 @@ reset_cursor(Cursor, #state{fd = Fd}) ->
 	end,
 	journald_api:seek_cursor(Fd, Cursor).
 
-get_last_cursor(#state{fd = Fd}) ->
+get_last_entry_cursor(#state{fd = Fd}) ->
 	ok = journald_api:seek_tail(Fd),
 	ok = journald_api:previous(Fd),
 	{ok, Cursor} = journald_api:get_cursor(Fd),
 	Cursor.
+
 
 reset_timeframe(DateTime1, DateTime2, State = #state{fd = Fd}) ->
     {ok, Cursor1} = seek_timestamp(DateTime1, State),
@@ -233,11 +245,10 @@ unregister_notifier(Pid, State = #state{fd = Fd, notifier = Notifier}) ->
 	NewNotifier = Notifier#notifier{active = Active, user_pids = NewPids},
 	State#state{notifier = NewNotifier}.
 
-evaluate_log_options(Options, State = #state{fd = Fd}) ->
+evaluate_log_options(Options, State) ->
 	Dir = proplists:get_value(direction, Options, top),
 	AtMost = proplists:get_value(at_most, Options, undefined),
 	Since = proplists:get_value(since, Options, undefined),
-	Cursor = proplists:get_value(last_cursor, Options, undefined),
 	Until = proplists:get_value(until, Options, undefined),
 	Field = proplists:get_value(field, Options, undefined),
 	case Field of
@@ -246,18 +257,22 @@ evaluate_log_options(Options, State = #state{fd = Fd}) ->
 	end,
 	State1 = State#state{direction = Dir},
 	State2 = reset_timeframe(Since, Until, State1),
-	case Cursor of
-		undefined 	->  NewLastCursor = undefined;
-		_ 			-> 
-			NewLastCursor = get_last_cursor(State),
-			reset_cursor(Cursor, State),
-			journald_api:next(Fd)
-	end,
 	Result = collect_logs(Call, AtMost, State2),
-	case Cursor of
-		undefined 	-> {Result, State2};
-		_ 			-> {{Result, NewLastCursor}, State2}
-	end.
+	{Result, State2}.
+
+flush_logs(Options, State) ->
+	Cursor = proplists:get_value(last_entry_cursor, Options),
+	Field = proplists:get_value(field, Options, undefined),
+	case Field of
+		undefined 	-> Call = next_entry;
+		Field 		-> Call = {next_field, Field}
+	end,
+	State1 = State#state{direction = bot, time_frame = #time_frame{}},
+	NewCursor = get_last_entry_cursor(State1),
+	reset_cursor(Cursor, State),
+	move(next, State1),
+	Result = collect_logs(Call, undefined, State1),
+	{Result, NewCursor}.
 
 collect_logs(Call, AtMost, State) ->
 	collect_logs(Call, AtMost, State, []).

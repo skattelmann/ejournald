@@ -34,7 +34,7 @@ io_fwrite(_Config) ->
 %% -- testcases READING
 read_last_3_logs(_Config) ->
 	Logs = ejournald:get_logs([{direction, top}, {at_most, 3}]),
-	[ ct:log(Log) || {_Timestamp, Log} <- Logs ],
+	[ [ ct:log(Field) || Field <- Log ++ ["~n"] ] || {_Timestamp, Log} <- Logs ],
 	ok.
 
 read_last_3_messages(_Config) ->

@@ -120,7 +120,6 @@ get_last_entry_cursor(#state{fd = Fd}) ->
 	{ok, Cursor} = journald_api:get_cursor(Fd),
 	Cursor.
 
-
 reset_timeframe(DateTime1, DateTime2, State = #state{fd = Fd}) ->
     {ok, Cursor1} = seek_timestamp(DateTime1, State),
     {ok, Cursor2} = seek_timestamp(DateTime2, State),
@@ -260,7 +259,7 @@ evaluate_log_options(Options, State) ->
 	Result = collect_logs(Call, AtMost, State2),
 	{Result, State2}.
 
-flush_logs(Options, State) ->
+flush_logs(Options, State = #state{fd = Fd}) ->
 	Cursor = proplists:get_value(last_entry_cursor, Options),
 	Field = proplists:get_value(field, Options, undefined),
 	case Field of
@@ -268,10 +267,15 @@ flush_logs(Options, State) ->
 		Field 		-> Call = {next_field, Field}
 	end,
 	State1 = State#state{direction = bot, time_frame = #time_frame{}},
-	NewCursor = get_last_entry_cursor(State1),
 	reset_cursor(Cursor, State),
 	move(next, State1),
 	Result = collect_logs(Call, undefined, State1),
+	case journald_api:get_cursor(Fd) of
+		{ok, NewCursor} -> ok;
+		_ 				-> 
+			move1(Fd, previous),
+			{ok, NewCursor} = journald_api:get_cursor(Fd)
+	end,
 	{Result, NewCursor}.
 
 collect_logs(Call, AtMost, State) ->

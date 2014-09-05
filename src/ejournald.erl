@@ -7,7 +7,7 @@
 		 get_logs/1, get_logs/2
 		]).
 -export([log_notify/2, log_notify/3,
-		 log_notify_worker/4
+		 log_notify_worker/3
 		]).
 
 -define(READER, ejournald_reader).
@@ -67,33 +67,32 @@ evaluate_options_notify(Id, Sink, Options) ->
 		_Sink -> ok
 	end,
 	Cursor = gen_server:call(Id, last_entry_cursor),
-	Pid = spawn(?MODULE, log_notify_worker, [Id, Sink, Options ++ [{last_entry_cursor, Cursor}], 0 ]),
+	Pid = spawn(?MODULE, log_notify_worker, [Id, Sink, Options ++ [{last_entry_cursor, Cursor}]]),
 	ok = gen_server:call(Id, {register_notifier, Pid}),
 	{ok, Pid}.
 
-log_notify_worker(Id, Sink, Options, CompTs) ->
+log_notify_worker(Id, Sink, Options) ->
 	receive 
 		journal_append ->
 			{Result, Cursor} = gen_server:call(Id, {flush_logs, Options}),
-			NewCompTs = evaluate_sink(Sink, Result, CompTs),
+			evaluate_sink(Sink, Result),
 			NewOptions = proplists:delete(last_entry_cursor, Options) ++ [{last_entry_cursor, Cursor}],
-			log_notify_worker(Id, Sink, NewOptions, NewCompTs);
+			log_notify_worker(Id, Sink, NewOptions);
 		{'DOWN', _Ref, process, Sink, _Reason} ->
 			gen_server:call(Id, {unregister_notifier, self()});
 		exit ->
 			gen_server:call(Id, {unregister_notifier, self()})
 	end.
 
-evaluate_sink(_Sink, [], CompTs) ->
-	CompTs;
-evaluate_sink(Sink, [{Timestamp, Log} | Result], CompTs) when is_pid(Sink), Timestamp > CompTs ->
+evaluate_sink(_Sink, []) -> ok;
+evaluate_sink(Sink, [{Timestamp, Log} | Result]) when is_pid(Sink) ->
 	Sink ! {Timestamp, Log},
-	evaluate_sink(Sink, Result, Timestamp);
-evaluate_sink(Sink, [ TsLog = {Timestamp, _Log} | Result], CompTs) when is_function(Sink,1), Timestamp > CompTs ->
+	evaluate_sink(Sink, Result);
+evaluate_sink(Sink, [ TsLog = {_Timestamp, _Log} | Result]) when is_function(Sink,1) ->
 	catch(Sink(TsLog)),
-	evaluate_sink(Sink, Result, Timestamp);
-evaluate_sink(Sink, [ _ | Result], CompTs) when is_pid(Sink);is_function(Sink,1) ->
-	evaluate_sink(Sink, Result, CompTs);
-evaluate_sink(_Sink, _Result, _CompTs) ->
+	evaluate_sink(Sink, Result);
+evaluate_sink(Sink, [ _ | Result]) when is_pid(Sink);is_function(Sink,1) ->
+	evaluate_sink(Sink, Result);
+evaluate_sink(_Sink, _Result) ->
 	erlang:error(badarg).
 

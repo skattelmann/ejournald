@@ -85,7 +85,7 @@ get_fields(Fd) ->
 get_fields(Fd, Akk) ->
 	case journald_api:enumerate_data(Fd) of
 		{ok, Data} ->
-			get_fields(Fd, Akk ++ [Data]);
+			get_fields(Fd, [Data | Akk]);
 		_ ->
 			Akk
 	end. 
@@ -228,7 +228,7 @@ register_notifier(Pid, State = #state{fd = Fd, notifier = Notifier}) ->
 		false -> ok = journald_api:open_notifier(Fd, self());
 		true -> ok
 	end,
-	NewNotifier = Notifier#notifier{active = true, user_pids = Pids ++ [Pid]},
+	NewNotifier = Notifier#notifier{active = true, user_pids = [Pid | Pids]},
 	State#state{notifier = NewNotifier}.
 
 unregister_notifier(Pid, State = #state{fd = Fd, notifier = Notifier}) ->
@@ -281,7 +281,7 @@ flush_logs(Options, State = #state{fd = Fd}) ->
 collect_logs(Call, AtMost, State) ->
 	collect_logs(Call, AtMost, State, []).
 collect_logs(_Call, 0, _State, Akk) ->
-	Akk;
+	lists:reverse(Akk);
 collect_logs(Call, Counter, State, Akk) ->
 	case Call of
 		next_entry ->
@@ -290,10 +290,10 @@ collect_logs(Call, Counter, State, Akk) ->
 			Result = next_field(Field, State)
 	end,
 	case Result of
-		eaddrnotavail -> Akk;
+		eaddrnotavail -> lists:reverse(Akk);
 		Log when Counter =:= undefined ->
-			collect_logs(Call, Counter, State, Akk ++ [Log]);
+			collect_logs(Call, Counter, State, [Log | Akk]);
 		Log when is_number(Counter) ->
-			collect_logs(Call, Counter-1, State, Akk ++ [Log])
+			collect_logs(Call, Counter-1, State, [Log | Akk])
 	end.
 

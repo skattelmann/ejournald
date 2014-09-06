@@ -92,6 +92,6 @@ receive_flush(N) ->
 			ct:log(Log),
 			receive_flush(N-1)
 	after
-		200 ->
+		500 ->
 			erlang:error(timeout)
 	end.

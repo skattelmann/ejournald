@@ -4,6 +4,15 @@
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, terminate/2, code_change/3]).
 -export([start_link/1]).
 
+-define(LOG_LVLS,  [{emergency, 0}, 
+					{alert, 1}, 
+					{critical, 2}, 
+					{error, 3}, 
+					{warning, 4}, 
+					{notice, 5}, 
+					{info, 6}, 
+					{debug, 7}]).
+
 -record(time_frame, {
 	fst_cursor,
 	snd_cursor
@@ -77,6 +86,7 @@ evaluate_log_options(Options, State) ->
 	end,
 	State1 = State#state{direction = Dir},
 	State2 = reset_timeframe(Since, Until, State1),
+	reset_matches(Options, State2),
 	Result = collect_logs(Call, AtMost, State2),
 	{Result, State2}.
 
@@ -187,6 +197,12 @@ seek_timestamp(DateTime, #state{fd = Fd}) ->
 		    journald_api:get_cursor(Fd)
 	end.
 
+reset_matches(Options, #state{fd = Fd}) ->
+	LogLvl = proplists:get_value(log_level, Options, notice),
+	journald_api:flush_matches(Fd),
+	LogLvlInt = proplists:get_value(LogLvl, ?LOG_LVLS),
+	[ journald_api:add_match(Fd, "PRIORITY=" ++ integer_to_list(Lvl)) || Lvl <- lists:seq(LogLvlInt, 7) ].
+
 datetime_to_unix_seconds(DateTime) ->
     DateTimeInSecs = calendar:datetime_to_gregorian_seconds(DateTime),
 	UnixEpoch={{1970,1,1},{0,0,0}},
@@ -272,6 +288,7 @@ flush_logs(Options, State = #state{fd = Fd}) ->
 	State1 = State#state{direction = bot, time_frame = #time_frame{}},
 	reset_cursor(Cursor, State),
 	move(next, State1),
+	reset_matches(Options, State1),
 	Result = collect_logs(Call, undefined, State1),
 	case journald_api:get_cursor(Fd) of
 		{ok, NewCursor} -> ok;

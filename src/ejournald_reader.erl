@@ -58,9 +58,10 @@ handle_call({terminate, Reason}, _From, State) ->
 handle_call(_Msg, _From, State) ->
 	{noreply, State}.
 
-handle_info(journal_append, State = #state{notifier = Notifier}) -> 
+handle_info(JournalInfo, State = #state{notifier = Notifier}) 
+	when JournalInfo=:=journal_append; JournalInfo=:=journal_changed -> 
 	UserPids = Notifier#notifier.user_pids,
-	[ Pid ! journal_append || Pid <- UserPids ],
+	[ Pid ! JournalInfo || Pid <- UserPids ],
 	{noreply, State};
 handle_info(_Msg, State) -> 
 	{noreply, State}.

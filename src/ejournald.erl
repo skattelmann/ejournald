@@ -7,7 +7,7 @@
 		 get_logs/1, get_logs/2
 		]).
 -export([log_notify/2, log_notify/3,
-		 log_notify_worker/3
+		 log_notify_starter/3
 		]).
 
 -define(READER, ejournald_reader).
@@ -115,9 +115,17 @@ evaluate_options_notify(Id, Sink, Options) ->
 		_Sink -> ok
 	end,
 	Cursor = gen_server:call(Id, last_entry_cursor),
-	Pid = spawn(?MODULE, log_notify_worker, [Id, Sink, [ {last_entry_cursor, Cursor} | Options ]]),
+	Pid = spawn(?MODULE, log_notify_starter, [Id, Sink, [ {last_entry_cursor, Cursor} | Options ]]),
 	ok = gen_server:call(Id, {register_notifier, Pid}),
 	{ok, Pid}.
+
+%% @private
+log_notify_starter(Id, Sink, Options) when is_pid(Sink) ->
+	link(Sink),
+	process_flag(trap_exit, true),
+	log_notify_worker(Id, Sink, Options);
+log_notify_starter(Id, Sink, Options) ->
+	log_notify_worker(Id, Sink, Options).
 
 %% @private
 log_notify_worker(Id, Sink, Options) ->
@@ -127,13 +135,20 @@ log_notify_worker(Id, Sink, Options) ->
 			evaluate_sink(Sink, Result),
 			NewOptions = lists:keyreplace(last_entry_cursor, 1, Options, {last_entry_cursor, Cursor}),
 			log_notify_worker(Id, Sink, NewOptions);
-		{'DOWN', _Ref, process, Sink, _Reason} ->
+		journal_changed ->
+			evaluate_sink(Sink, journal_changed),
+			log_notify_worker(Id, Sink, Options);
+		{'EXIT', _FromPid, _Reason} ->
 			gen_server:call(Id, {unregister_notifier, self()});
 		exit ->
 			gen_server:call(Id, {unregister_notifier, self()})
 	end.
 
 %% @private
+evaluate_sink(Sink, journal_changed) when is_pid(Sink) ->
+	Sink ! journal_changed;
+evaluate_sink(Sink, journal_changed) when is_function(Sink,1) ->
+	catch(Sink(journal_changed));
 evaluate_sink(_Sink, []) -> ok;
 evaluate_sink(Sink, [ Msg = {_Timestamp, _Priority, _Data} | Result]) when is_pid(Sink) ->
 	Sink ! Msg,

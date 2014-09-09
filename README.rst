@@ -1,7 +1,7 @@
 ejournald
 =========
 
-Ejournald is a journal binding for Erlang. It provides advanced write and read support for systemd's journal.
+Ejournald is an Erlang interface for systemd's journald. It provides advanced write and read support.
 
 Installation
 ------------
@@ -14,99 +14,27 @@ Installation using tetrapak
 --------------------------
 You can build the project by executing "tetrapak build". 
 
-Lager integration
------------------
-You can use [lager_journald_backend](https://github.com/travelping/lager_journald_backend) to send your Lager logs to systemd's journal.
-
 Usage
 -----
 
-journald_api:sendv([Parameter1, Parameter2,...,ParameterN]) is equal to sd_journal_sendv().
-Please deliver the parameters as a tuple {"VARIABLE", value}. You can use atom, int, float, or iolist (string, binary) as value. 
+Ejournald is intended to provide logging support for journald. Together with [lager](https://github.com/basho/lager) and the [lager_journald_backend](https://github.com/travelping/lager_journald_backend) it allows to write structured logs with additional metainformation into systemd's journal. Logging directly with ejournald is also possible (via the NIF-API) but it is recommended to use lager. On top of that ejournald provides:
 
-Example for sendv(): 
+    - an Erlang I/O-server for stream-like logging
+    - a high-level API for retrieving logs 
 
-    journald_api:sendv([{"MESSAGE", test}, {"PRIORITY", 1}]). 
+The I/O-server is is not capable of reading the journal. It can be used as an IO devide together with the [erlang:io](http://erlang.org/doc/man/io.html) library. Therefore commands like 'io:format()' or 'io:write()' can be used in a very convenient way to write stuff into the journal without using lager. By default an I/O-server named 'ejournald_io_server' is started together with ejournald. The log level (by default 'info') and other options are fixed for one I/O-server. Thus if you need other options (e.g. another log level) you need to start your own one. Note that the 'name' option (a string) is mandatory and you have to deliver a unique name for every server. This name will appear as a prefix in the journal.
+The high-level API for reading logs consists of the two function get_logs/1 and log_notify/1. The first one will enable you to retrieve logs based on time-frames. The latter one is intended to deliver new logs as they appear in the journal. It is therefore possible to build simple monitoring systems using this API. Logs are always delivered of the form:
 
-You can use these input parameters: http://0pointer.de/public/systemd-man/systemd.journal-fields.html
+    {Timestamp, LogLevel, LogData}
 
-journald_api:stream_fd(identifier, priority, level_prefix) stream to journal by calling sd_journal_stream_fd(3). 
-stream_fd/3 returns a stream file descriptor you can use in write_fd to write into the journal. The journal entries SYSLOG_IDENTIFIER = identifier and PRIORITY=priority will be set for all messages send through this file descriptor. level_prefix is a boolean. If true kernel-style log priority prefixes can be interpreted (not implemented yet).
+where Timestamp is of type [calendar:datetime1970()](http://www.erlang.org/doc/man/calendar.html#type-datetime1970), LogLevel is one of the eight journald log levels and LogData is a string or a list of strings. As an example 
 
-journald_api:write_fd(File_descriptor, Message) writes Message into journald using a file descriptor from stream_fd.
-Message must be a string. Messages are sent after "\n" is written.
+    LastLogs = ejournald:get_logs([{at_most, 10}, {message, true}]),
+    ejournald:log_notify(self(), [{message, true}]),
+    flush(). % some new logs might appear here 
 
-Example for stream_fd/3 and write_fd/2: 
+is roughly equivalent to 'journalctl -f' giving you the last 10 logs in message-only format (just one string per log) and following the journal if new logs appear. Leaving the 'message'-option would give you whole logs (a list of strings per log). The 'Options' parameter is always intended to filter the choice of logs. Just 'ejournald:get_logs([])' would reproduce the whole journal. To restrict the time-frame of logs (for get_logs()) you can use the options 'since' and 'until'. The order of logs is always destined by the 'direction'-option (by default 'top' - from newest to oldest). Another example:
 
-    Fd = journald_api:stream_fd("id",5,0).
-    journald_api:write_fd(Fd, "notice\n").
+    Logs = ejournald:get_logs([{log_level, alarm}, {direction, bot}, {since, {{2013,12,31},{12,0,0}} }]).
 
-will produce the following message in the journal:
-        
-    PRIORITY=5
-    SYSLOG_IDENTIFIER=id
-    MESSAGE=notice
-
-Reading from the journal: The following command sequence describes a typical workflow. 
-
-    > {ok, Journal} = journald_api:open().
-    > {ok, JournalDir} = journald_api:open_directory(<Path>).
-
-    > journald_api:next(Journal).
-    > journald_api:get_data(Journal, "MESSAGE").        
-    {ok,"MESSAGE= first message"}               
-
-    > journald_api:seek_tail(Journal).         
-    > journald_api:previous(Journal).         
-    > journald_api:get_data(Journal, "MESSAGE").
-    {ok,"MESSAGE= another message"}
-
-    > journald_api:add_match(Journal, "PRIORITY=7").
-    > journald_api:previous(Journal). 
-    > journald_api:get_data(Journal, "PRIORITY").
-    {ok,"PRIORITY=7"}
-
-    > journald_api:add_disjunction(Journal).	
-    // the next add_match should be added as a disjunction 
-    // (conjunction also available but not working with systemd 199)
-    
-    > journald_api:add_match(Journal, "PRIORITY=5"). 
-
-    > journald_api:flush_matches(Journal).   
-    > journald_api:next(Journal).
-    > journald_api:get_data(Journal, "PRIORITY").
-    {ok,"PRIORITY=3"}
-
-    > journald_api:seek_head(Journal).                    
-    > journald_api:next().                  
-
-    > {ok, Cursor} = journald_api:get_cursor(Journal).
-    > journald_api:test_cursor(Journal, Cursor).    
-    > journald_api:seek_cursor(Journal, Cursor).
-    > journald_api:next(Journal).                  
-
-    > journald_api:enumerate_data(Journal).		
-    > journald_api:restart_data(Journal).	
-
-    > journald_api:open_notifier(Journal, self()).
-    > journald_api:sendv([{"MESSAGE", test}]).	
-    > flush().
-    Shell got journal_append
-
-    > journald_api:close_notifier(Journal).	
-
-    > journald_api:close(Journal).         
-
-
-There can be just one notifier per Journal instance. The notifier itself is no part of the C-API but uses the sd_journal_wait() function.
-The notifier will close itself when the receiving Erlang process is not available.
-Note that the notifier distinguishes between added journal entries and added/deleted journal files. It returns 'journal_append' or 'journal_invalidate'.
-
-Moving the head against borders (e.g. start and end of the journal or an entry) won't result in a crash, the atom 'eaddrnotavail' will be returned instead. 
-But be careful with the following:
-	- journald_api:seek_head/1 moves the cursor in front of the first entry and one has to call journald_api:next/1 to get the first entry.
-	- journald_api:seek_tail/1 moves the cursor behind the last entry and one has to call journald_api:previous/1 to get the last entry.
-
-Mixing this up will return random entries from the journal. See:
-	- https://bugs.freedesktop.org/show_bug.cgi?id=64614
-	- https://bugzilla.redhat.com/show_bug.cgi?id=979487
+This gives you full logs in the order 'oldest to newest' since lunchtime of last silvester with log level at most 'alarm'. Note that you must use UTC-time. If possible filtering should be done by ejournald since the used C-API in the background is much faster at handling this. You can use as many different log_notify()'s as you want at the same time. Different filters will be handled properly. Filtering by (Erlang-) applications and other meta-data is planned for the future.

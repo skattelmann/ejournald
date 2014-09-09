@@ -65,10 +65,8 @@ handle_info(journal_append, State = #state{notifier = Notifier}) ->
 handle_info(_Msg, State) -> 
 	{noreply, State}.
 
-terminate(_Reason, State = #state{fd = Fd, notifier = Notifier}) -> 
-	[ unregister_notifier(Pid, State) || Pid <- Notifier#notifier.user_pids ],
-	%ok = journald_api:close(Fd),
-	ok.
+terminate(_Reason, State = #state{notifier = Notifier}) -> 
+	[ unregister_notifier(Pid, State) || Pid <- Notifier#notifier.user_pids ].
 
 %% unused
 handle_cast(_Msg, State) -> {noreply, State}.
@@ -288,7 +286,7 @@ unregister_notifier(Pid, State = #state{fd = Fd, notifier = Notifier}) ->
 	NewPids = lists:delete(Pid, Pids),
 	case NewPids of
 		[] -> 
-			journald_api:close_notifier(Fd),
+			ok = journald_api:close_notifier(Fd),
 			NewActive = false;
 		_NotEmpty ->
 			NewActive = true

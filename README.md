@@ -19,8 +19,8 @@ Usage
 
 Ejournald is intended to provide logging support for journald. Together with [lager](https://github.com/basho/lager) and the [lager_journald_backend](https://github.com/travelping/lager_journald_backend) it allows to write structured logs with additional metainformation into systemd's journal. Logging directly with ejournald is also possible (via the NIF-API) but it is recommended to use lager. On top of that ejournald provides:
 
-    - an **Erlang I/O-server** for stream-like logging
-    - a high-level API for retrieving logs 
+- an **Erlang I/O-server** for stream-like logging
+- a high-level API for retrieving logs 
 
 The I/O-server is is not capable of reading the journal. It can be used as an IO devide together with the [erlang:io](http://erlang.org/doc/man/io.html) library. Therefore commands like *io:format()* or *io:write()* can be used in a very convenient way to write stuff into the journal without using lager. By default an I/O-server named *ejournald_io_server* is started together with ejournald. The log level (by default 'info') and other options are fixed for one I/O-server. Thus if you need other options (e.g. another log level) you need to start your own one. Note that the 'name' option (a string) is mandatory and you have to deliver a unique name for every server. This name will appear as a prefix in the journal.
 The high-level API for reading logs consists of the two function get_logs/1 and log_notify/1. The first one will enable you to retrieve logs based on time-frames. The latter one is intended to deliver new logs as they appear in the journal. It is therefore possible to build simple monitoring systems using this API. Logs are always delivered of the form

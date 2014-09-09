@@ -1,12 +1,12 @@
 ejournald
 =========
 
-Ejournald is an Erlang interface for systemd's journald. It provides advanced write and read support.
+Ejournald is an Erlang interface for systemd's [journald](http://www.freedesktop.org/software/systemd/man/systemd-journald.service.html). It provides advanced write and read support.
 
 Installation
 ------------
 
-Ejournald consists of two parts: the first part is a nif for the communication with journald, the second is an Erlang interface.
+Ejournald consists of two parts: the first part is a nif for the communication with journald, the second is an Erlang application.
 
 First, you have to compile the sources in c_src/ using make. Next you can compile the erlang source in src/. 
 

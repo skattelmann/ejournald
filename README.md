@@ -33,7 +33,7 @@ where *Timestamp* is of type [calendar:datetime1970()](http://www.erlang.org/doc
 
 ```erlang
     LastLogs = ejournald:get_logs([{at_most, 10}, {message, true}]),
-    ejournald:log_notify(self(), [{message, true}]),
+    {ok, NotifyPid} = ejournald:log_notify(self(), [{message, true}]),
     flush(). % some new logs might appear here 
 ```
 
@@ -46,19 +46,19 @@ is roughly equivalent to *'journalctl -f'* giving you the last 10 logs in messag
 This gives you full logs in the order 'oldest to newest' since lunchtime of last silvester. Note that you must use UTC-time. If possible filtering should be done by ejournald since the used C-API in the background is much faster at handling this. You can use as many different log_notify()'s as you want at the same time. Different filters will be handled properly. A process handling new logs has the following layout:
 
 ```erlang
-	loop() ->
-		receive 
+    loop() ->
+        receive 
             {'EXIT', FromPid, Reason} ->
                 % end your process;
-                % ejournald automatically links a worker process to your Pid.
+                % ejournald automatically links a worker process to your pid.
                 % Thus if you end your process it will also end this worker.
-			{Timestamp, LogLevel, LogData} ->
-				% do something here
-				loop();
-			journal_changed ->
-				% maybe a new journal file was appended, refresh your monitors!
-				loop()
-		end.
+            {Timestamp, LogLevel, LogData} ->
+                % do something here
+                loop();
+            journal_invalidate ->
+                % maybe a new journal file was appended, refresh your monitors!
+                loop()
+        end.
 ```
 
 You can also provide a function for working on the logs. Filtering by (Erlang-) applications and other meta-data is planned for the future.

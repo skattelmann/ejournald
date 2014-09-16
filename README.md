@@ -12,7 +12,11 @@ First, you have to compile the sources in c_src/ using make. Next you can compil
 
 Installation using tetrapak
 --------------------------
-You can build the project by executing "tetrapak build". 
+Execute "tetrapak build".
+
+Installation using rebar
+--------------------------
+Execute "rebar compile".  
 
 Usage
 -----

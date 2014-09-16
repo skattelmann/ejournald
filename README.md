@@ -6,7 +6,7 @@ Ejournald is an Erlang interface for systemd's [journald](http://www.freedesktop
 Installation
 ------------
 
-Ejournald consists of two parts: the first part is a nif for the communication with journald, the second is an Erlang application.
+Ejournald consists of two parts: the first part is a NIF for the communication with journald, the second is an Erlang application using it.
 
 First, you have to compile the sources in c_src/ using make. Next you can compile the erlang source in src/. 
 
@@ -20,7 +20,7 @@ Usage
 Ejournald is intended to provide logging support for [journald](http://www.freedesktop.org/software/systemd/man/systemd-journald.service.html). Together with [lager](https://github.com/basho/lager) and the [lager_journald_backend](https://github.com/travelping/lager_journald_backend) it allows to write structured logs with additional metainformation into systemd's journal. Logging directly with ejournald is also possible (via the NIF-API) but it is recommended to use lager. On top of that ejournald provides:
 
 - an **[Erlang I/O-server](http://www.erlang.org/doc/apps/stdlib/io_protocol.html)** for stream-like logging (without lager)
-- a high-level API for retrieving logs 
+- a high-level API for retrieving logs
 
 The I/O-server is is not capable of reading the journal. It can be used as an IO device together with the [erlang io](http://erlang.org/doc/man/io.html) library. Therefore commands like *io:format()* or *io:write()* can be used in a very convenient way to write stuff into the journal without using lager. By default an I/O-server named *ejournald_io_server* is started together with ejournald. The log level (by default *info*) and other options are fixed for one I/O-server. Thus if you need other options (e.g. another log level) you need to start your own one. Note that the 'name' option (a string) is mandatory and you have to deliver a unique name for every server. This name will appear as a prefix in the journal.
 The high-level API for reading logs consists of the two function get_logs/1 and log_notify/1. The first one will enable you to retrieve logs based on time-frames. The latter one is intended to deliver new logs as they appear in the journal. It is therefore possible to **build simple monitoring systems** using this API. Logs are always delivered in the form
@@ -61,4 +61,10 @@ This gives you full logs in the order 'oldest to newest' since lunchtime of last
         end.
 ```
 
-You can also provide a function for working on the logs. Filtering by (Erlang-) applications and other meta-data is planned for the future.
+You can also provide a function for working on the logs. The [lager_journald_backend](https://github.com/travelping/lager_journald_backend) is capable of storing Erlang meta information in journald. These can also be used to filter logs by Erlang application or other data:
+
+```erlang
+    Logs = ejournald:get_logs([{erl_app, my_app}, {at_most, 5}]).
+```
+
+This gives me the last five logs coming from the application 'my_app'. Note that meta information is logged automatically by the backend.

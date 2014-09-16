@@ -277,39 +277,33 @@ unix_seconds_to_datetime(UnixTime) ->
 
 %% ------------------------------------------------------------------------------
 %% -- pointer movement api
-move(Pos, #state{fd = Fd, direction = Dir, time_frame = TimeFrame}) ->
-    #time_frame{fst_cursor = Cursor1, snd_cursor = Cursor2} = TimeFrame,
-    case Pos of
-        next ->
-            case Dir of 
-                bot when Cursor2 /= undefined -> 
-                    case journald_api:test_cursor(Fd, Cursor2) of
-                        ok -> no_more;
-                        _ ->
-                            move1(Fd, next)
-                    end;
-                bot ->
-                    move1(Fd, next);
-                top when Cursor1 /= undefined -> 
-                    case journald_api:test_cursor(Fd, Cursor1) of
-                        ok -> no_more;
-                        _ ->
-                            move1(Fd, previous)
-                    end;
-                top ->
+move(next, #state{fd = Fd, direction = Dir, time_frame = #time_frame{fst_cursor = Cursor1, snd_cursor = Cursor2}}) ->
+    case Dir of 
+        bot when Cursor2 /= undefined -> 
+            case journald_api:test_cursor(Fd, Cursor2) of
+                ok -> no_more;
+                _ ->
+                    move1(Fd, next)
+            end;
+        bot ->
+            move1(Fd, next);
+        top when Cursor1 /= undefined -> 
+            case journald_api:test_cursor(Fd, Cursor1) of
+                ok -> no_more;
+                _ ->
                     move1(Fd, previous)
             end;
-        head when Cursor1 /= undefined ->
-            ok = journald_api:seek_cursor(Fd, Cursor1);
-        head ->
-            ok = journald_api:seek_head(Fd);
-        tail when Cursor2 /= undefined ->
-            ok = journald_api:seek_cursor(Fd, Cursor2);
-        tail ->
-            ok = journald_api:seek_tail(Fd);
-        stay -> 
-            ok
-    end.
+        top ->
+            move1(Fd, previous)
+    end;
+move(head, #state{fd = Fd, time_frame = #time_frame{fst_cursor = Cursor1}})
+    when Cursor1 /= undefined -> ok = journald_api:seek_cursor(Fd, Cursor1);
+move(head, #state{fd = Fd}) ->
+    ok = journald_api:seek_head(Fd);
+move(tail, #state{fd = Fd, time_frame = #time_frame{snd_cursor = Cursor2}})
+    when Cursor2 /= undefined -> ok = journald_api:seek_cursor(Fd, Cursor2);
+move(tail, #state{fd = Fd}) ->
+    ok = journald_api:seek_tail(Fd).
 
 move1(Fd, previous) ->                          
     Success = journald_api:previous(Fd),

@@ -40,10 +40,10 @@
 %% ----------------------------------------------------------------------------------------------------
 %% -- gen_server callbacks
 start_link(Options) ->
-    gen_server:start_link(?MODULE, [Options], []).
+    gen_server:start_link(?MODULE, Options, []).
     
 start_link(Name, Options) ->
-    gen_server:start_link({local, Name}, ?MODULE, [Options], []).
+    gen_server:start_link({local, Name}, ?MODULE, Options, []).
 
 init(Options) ->
     JournalDir = proplists:get_value(dir, Options),

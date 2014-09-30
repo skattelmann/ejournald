@@ -116,7 +116,7 @@ start_reader(Options) ->
 %% @doc Start a named reader (the default reader' ejournald_reader' should suffice).
 -spec start_reader( term(), [reader_options()] ) -> {ok, pid()} | {error, any()}.
 start_reader(Name, Options) ->
-    ejournald_sup:start(?READER, Name, Options).
+    ejournald_sup:start(?READER, Name, [Options]).
 
 %% @doc Stop a reader by its name or pid.
 -spec stop_reader( term() ) -> ok | {error, any()}.
